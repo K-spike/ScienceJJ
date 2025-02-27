@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>꺾은선 그래프 만들기</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        button {
+            margin: 5px;
+        }
+        #coords {
+            margin-top: 10px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <h2>시간과 온도 표</h2>
+    <table>
+        <tr>
+            <th>시간(분)</th>
+            <td>0</td>
+            <td>2</td>
+            <td>4</td>
+            <td>6</td>
+            <td>8</td>
+            <td>10</td>
+            <td>12</td>
+            <td>14</td>
+            <td>16</td>
+            <td>18</td>
+            <td>20</td>
+        </tr>
+        <tr>
+            <th>온도(℃)</th>
+            <td>15</td>
+            <td>16.5</td>
+            <td>17.9</td>
+            <td>20.7</td>
+            <td>22.2</td>
+            <td>23.4</td>
+            <td>24.0</td>
+            <td>24.3</td>
+            <td>24.3</td>
+            <td>24.3</td>
+            <td>24.3</td>
+        </tr>
+    </table>
+
+    <h2>그래프 그리기</h2>
+    <canvas id="myCanvas" width="500" height="400"></canvas><br>
+    <button onclick="completeGraph()">완성</button>
+    <button onclick="saveGraph()">저장</button>
+    <button onclick="resetGraph()">초기화</button>
+    <div id="coords">마우스 좌표: 시간 - , 온도 - </div>
+
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+        const coordsDiv = document.getElementById("coords");
+        let points = [];
+        let lastPreview = null;
+
+        // 그래프 축 그리기
+        function drawAxes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.moveTo(50, 350); // X축
+            ctx.lineTo(450, 350);
+            ctx.moveTo(50, 50);  // Y축
+            ctx.lineTo(50, 350);
+            ctx.stroke();
+
+            // X축 눈금 (2단위로 표시만)
+            for (let i = 0; i <= 20; i += 2) {
+                let x = 50 + (i * 20);
+                ctx.moveTo(x, 350);
+                ctx.lineTo(x, 355);
+                ctx.fillText(i, x - 5, 370);
+            }
+
+            // Y축 눈금 (5단위)
+            for (let i = 0; i <= 30; i += 5) {
+                let y = 350 - (i * 10);
+                ctx.moveTo(50, y);
+                ctx.lineTo(45, y);
+                ctx.fillText(i, 25, y + 5);
+            }
+            ctx.stroke();
+
+            // 저장된 점 다시 그리기
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            });
+        }
+
+        drawAxes();
+
+        // 마우스 이동 시 점선 미리보기와 좌표 표시
+        canvas.addEventListener("mousemove", function(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // X축 제한 (0~20분)
+            let canvasX = x;
+            if (canvasX < 50) canvasX = 50;
+            if (canvasX > 450) canvasX = 450;
+
+            // Y축 제한 (0~30℃)
+            let yValue = Math.round((350 - y) / 10);
+            if (yValue < 0) yValue = 0;
+            if (yValue > 30) yValue = 30;
+            let canvasY = 350 - yValue * 10;
+
+            // 시간과 온도 계산
+            let time = ((canvasX - 50) / 400) * 20; // 0~20분
+            let temp = yValue;
+
+            // 좌표 표시
+            coordsDiv.textContent = `마우스 좌표: 시간 ${time.toFixed(1)}분, 온도 ${temp}℃`;
+
+            // 이전 점선 지우기
+            drawAxes();
+
+            // 점선 그리기
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(canvasX, 350);
+            ctx.lineTo(canvasX, canvasY);
+            ctx.moveTo(50, canvasY);
+            ctx.lineTo(canvasX, canvasY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            lastPreview = {x: canvasX, y: canvasY};
+        });
+
+        // 캔버스 클릭 이벤트
+        canvas.addEventListener("click", function(event) {
+            if (lastPreview) {
+                // 점 그리기
+                ctx.beginPath();
+                ctx.arc(lastPreview.x, lastPreview.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+
+                points.push({x: lastPreview.x, y: lastPreview.y});
+            }
+        });
+
+        // 캔버스 밖으로 나가면 점선 제거
+        canvas.addEventListener("mouseleave", function() {
+            drawAxes();
+            coordsDiv.textContent = "마우스 좌표: 시간 - , 온도 - ";
+        });
+
+        // 꺾은선 그래프 완성
+        function completeGraph() {
+            drawAxes(); // 축 다시 그리기
+            if (points.length < 2) {
+                alert("최소 2개의 점을 찍어주세요!");
+                return;
+            }
+
+            points.sort((a, b) => a.x - b.x); // X축 기준으로 정렬 (왼쪽에서 오른쪽)
+
+            // 선만 그리기
+            ctx.beginPath();
+            ctx.strokeStyle = "blue";
+            for (let i = 0; i < points.length; i++) {
+                if (i === 0) {
+                    ctx.moveTo(points[i].x, points[i].y); // 첫 점에서 시작
+                } else {
+                    ctx.lineTo(points[i].x, points[i].y); // 다음 점으로 연결
+                }
+            }
+            ctx.stroke();
+
+            // 점 다시 그리기 (선 위에 표시)
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            });
+        }
+
+        // JPG로 저장 (흰색 배경)
+        function saveGraph() {
+            // 흰색 배경으로 캔버스 채우기
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 축 다시 그리기
+            ctx.beginPath();
+            ctx.moveTo(50, 350); // X축
+            ctx.lineTo(450, 350);
+            ctx.moveTo(50, 50);  // Y축
+            ctx.lineTo(50, 350);
+            ctx.stroke();
+
+            // X축 눈금
+            for (let i = 0; i <= 20; i += 2) {
+                let x = 50 + (i * 20);
+                ctx.moveTo(x, 350);
+                ctx.lineTo(x, 355);
+                ctx.fillStyle = "black"; // 눈금 텍스트 색상
+                ctx.fillText(i, x - 5, 370);
+            }
+
+            // Y축 눈금
+            for (let i = 0; i <= 30; i += 5) {
+                let y = 350 - (i * 10);
+                ctx.moveTo(50, y);
+                ctx.lineTo(45, y);
+                ctx.fillStyle = "black"; // 눈금 텍스트 색상
+                ctx.fillText(i, 25, y + 5);
+            }
+            ctx.stroke();
+
+            // 선 그리기
+            if (points.length >= 2) {
+                points.sort((a, b) => a.x - b.x); // X축 기준으로 정렬
+                ctx.beginPath();
+                ctx.strokeStyle = "blue";
+                for (let i = 0; i < points.length; i++) {
+                    if (i === 0) {
+                        ctx.moveTo(points[i].x, points[i].y);
+                    } else {
+                        ctx.lineTo(points[i].x, points[i].y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // 점 그리기
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            });
+
+            // 저장 후 원래 상태로 복구
+            const link = document.createElement("a");
+            link.download = "graph.jpg";
+            link.href = canvas.toDataURL("image/jpeg");
+            link.click();
+
+            // 캔버스 원래 상태로 복구
+            drawAxes();
+            if (points.length >= 2) completeGraph();
+        }
+
+        // 그래프 초기화
+        function resetGraph() {
+            points = []; // 점 배열 비우기
+            drawAxes(); // 축만 다시 그리기
+            coordsDiv.textContent = "마우스 좌표: 시간 - , 온도 - ";
+        }
+    </script>
+</body>
+</html>
