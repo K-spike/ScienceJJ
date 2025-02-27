@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>오존층 자외선 반응 애니메이션 (지연 결합)</title>
+    <title>오존층 자외선 반응 애니메이션 (고속 변화)</title>
     <style>
         canvas { border: 1px solid black; background-color: #87CEEB; }
         .controls { margin: 10px; }
@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="controls">
-        <span>오존층에서 자외선에 의한 오존 분해와 결합 (1초 지연, 100개)</span>
+        <span>오존층에서 자외선에 의한 오존 분해와 결합 (100개, 고속, 1초 지연)</span>
     </div>
     <canvas id="myCanvas" width="600" height="400"></canvas>
     <script>
@@ -26,7 +26,7 @@
                 this.dx = dx;
                 this.dy = dy;
                 this.type = type;
-                this.waitTime = waitTime; // 결합 대기 시간 (프레임 단위)
+                this.waitTime = waitTime;
             }
 
             draw() {
@@ -36,8 +36,8 @@
                 ctx.fill();
                 ctx.closePath();
                 ctx.fillStyle = "black";
-                ctx.font = "12px Arial"; // 텍스트 크기 줄여 혼잡 방지
-                ctx.fillText(this.type, this.x - 15, this.y - 15);
+                ctx.font = "10px Arial"; // 혼잡 방지로 더 작게
+                ctx.fillText(this.type, this.x - 12, this.y - 12);
             }
 
             update() {
@@ -46,7 +46,7 @@
                 if (this.type !== "O₃" && this.type !== "UV") {
                     if (this.x + this.radius > canvas.width || this.x - this.radius < 0) this.dx = -this.dx;
                     if (this.y + this.radius > canvas.height || this.y - this.radius < 0) this.dy = -this.dy;
-                    if (this.waitTime > 0) this.waitTime--; // 대기 시간 감소
+                    if (this.waitTime > 0) this.waitTime--;
                 }
                 this.draw();
             }
@@ -61,15 +61,15 @@
             const targetCount = 100;
             const currentCount = particles.filter(p => p.type === "O₃").length;
             for (let i = currentCount; i < targetCount; i++) {
-                const x = Math.random() * (canvas.width - 50) + 25; // 랜덤 위치
+                const x = Math.random() * (canvas.width - 50) + 25;
                 const y = Math.random() * (canvas.height - 50) + 25;
-                particles.push(new Particle(x, y, 10, "purple", 0, 0, "O₃"));
+                particles.push(new Particle(x, y, 8, "purple", 0, 0, "O₃")); // 크기 줄여 혼잡 방지
             }
         }
 
         // 자외선(UV) 생성
         function spawnUV() {
-            particles.push(new Particle(Math.random() * canvas.width, 0, 5, "yellow", 0, 3, "UV"));
+            particles.push(new Particle(Math.random() * canvas.width, 0, 4, "yellow", 0, 3, "UV")); // 크기 줄임
         }
 
         // 충돌 감지 및 반응
@@ -89,19 +89,19 @@
                         const y = p1.y;
                         particles.splice(i, 1);
                         particles.splice(particles.indexOf(p2), 1);
-                        particles.push(new Particle(x, y, 8, "green", -1.5, 0.5, "O₂", 60)); // 1초 대기
-                        particles.push(new Particle(x, y, 5, "red", 1.5, -0.5, "O⁻", 60));
+                        particles.push(new Particle(x, y, 6, "green", -3, 1, "O₂", 60)); // 속도 2배, 1초 대기
+                        particles.push(new Particle(x, y, 4, "red", 3, -1, "O⁻", 60));
                         return;
                     }
 
-                    // O₂ + O⁻ -> O₃ (대기 시간 체크)
+                    // O₂ + O⁻ -> O₃
                     if (p1.type === "O₂" && p2.type === "O⁻" && distance < p1.radius + p2.radius) {
                         if (p1.waitTime === 0 && p2.waitTime === 0) {
                             const x = p1.x;
                             const y = p1.y;
                             particles.splice(i, 1);
                             particles.splice(particles.indexOf(p2), 1);
-                            particles.push(new Particle(x, y, 10, "purple", 0, 0, "O₃"));
+                            particles.push(new Particle(x, y, 8, "purple", 0, 0, "O₃"));
                             return;
                         }
                     }
@@ -114,7 +114,7 @@
             requestAnimationFrame(animate);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (frameCount % 100 === 0) {
+            if (frameCount % 10 === 0) { // UV 3배 자주 생성
                 spawnUV();
             }
 
@@ -128,7 +128,7 @@
             checkCollisions();
 
             const ozoneCount = particles.filter(p => p.type === "O₃").length;
-            if (ozoneCount < 10) { // 최소 10개 유지
+            if (ozoneCount < 20) { // 최소 20개 유지
                 initOzone();
             }
 
