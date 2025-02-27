@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>오존층 자외선 반응 애니메이션 (지연 결합)</title>
+    <style>
+        canvas { border: 1px solid black; background-color: #87CEEB; }
+        .controls { margin: 10px; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <span>오존층에서 자외선에 의한 오존 분해와 결합 (1초 지연, 100개)</span>
+    </div>
+    <canvas id="myCanvas" width="600" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 입자 클래스
+        class Particle {
+            constructor(x, y, radius, color, dx, dy, type, waitTime = 0) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.dx = dx;
+                this.dy = dy;
+                this.type = type;
+                this.waitTime = waitTime; // 결합 대기 시간 (프레임 단위)
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+                ctx.fillStyle = "black";
+                ctx.font = "12px Arial"; // 텍스트 크기 줄여 혼잡 방지
+                ctx.fillText(this.type, this.x - 15, this.y - 15);
+            }
+
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                if (this.type !== "O₃" && this.type !== "UV") {
+                    if (this.x + this.radius > canvas.width || this.x - this.radius < 0) this.dx = -this.dx;
+                    if (this.y + this.radius > canvas.height || this.y - this.radius < 0) this.dy = -this.dy;
+                    if (this.waitTime > 0) this.waitTime--; // 대기 시간 감소
+                }
+                this.draw();
+            }
+        }
+
+        // 입자 배열
+        let particles = [];
+        let frameCount = 0;
+
+        // 초기 오존(O₃) 생성
+        function initOzone() {
+            const targetCount = 100;
+            const currentCount = particles.filter(p => p.type === "O₃").length;
+            for (let i = currentCount; i < targetCount; i++) {
+                const x = Math.random() * (canvas.width - 50) + 25; // 랜덤 위치
+                const y = Math.random() * (canvas.height - 50) + 25;
+                particles.push(new Particle(x, y, 10, "purple", 0, 0, "O₃"));
+            }
+        }
+
+        // 자외선(UV) 생성
+        function spawnUV() {
+            particles.push(new Particle(Math.random() * canvas.width, 0, 5, "yellow", 0, 3, "UV"));
+        }
+
+        // 충돌 감지 및 반응
+        function checkCollisions() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                for (let j = particles.length - 1; j >= 0; j--) {
+                    if (i === j) continue;
+                    const p1 = particles[i];
+                    const p2 = particles[j];
+                    const dx = p1.x - p2.x;
+                    const dy = p1.y - p2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // UV + O₃ -> O₂ + O⁻
+                    if (p1.type === "O₃" && p2.type === "UV" && distance < p1.radius + p2.radius) {
+                        const x = p1.x;
+                        const y = p1.y;
+                        particles.splice(i, 1);
+                        particles.splice(particles.indexOf(p2), 1);
+                        particles.push(new Particle(x, y, 8, "green", -1.5, 0.5, "O₂", 60)); // 1초 대기
+                        particles.push(new Particle(x, y, 5, "red", 1.5, -0.5, "O⁻", 60));
+                        return;
+                    }
+
+                    // O₂ + O⁻ -> O₃ (대기 시간 체크)
+                    if (p1.type === "O₂" && p2.type === "O⁻" && distance < p1.radius + p2.radius) {
+                        if (p1.waitTime === 0 && p2.waitTime === 0) {
+                            const x = p1.x;
+                            const y = p1.y;
+                            particles.splice(i, 1);
+                            particles.splice(particles.indexOf(p2), 1);
+                            particles.push(new Particle(x, y, 10, "purple", 0, 0, "O₃"));
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 애니메이션 루프
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (frameCount % 100 === 0) {
+                spawnUV();
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].type === "UV" && particles[i].y > canvas.height) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            checkCollisions();
+
+            const ozoneCount = particles.filter(p => p.type === "O₃").length;
+            if (ozoneCount < 10) { // 최소 10개 유지
+                initOzone();
+            }
+
+            frameCount++;
+        }
+
+        // 초기화 및 시작
+        initOzone();
+        animate();
+    </script>
+</body>
+</html>
